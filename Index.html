@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>משחק שחמט</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 10px;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: white;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      font-weight: bold;
+    }
+
+    .game-container {
+      max-width: 100vw;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 10px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 1px;
+      margin: 0 auto;
+      border: 3px solid #8B4513;
+      background-color: #8B4513;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      width: min(90vw, 90vh);
+      height: min(90vw, 90vh);
+      max-width: 600px;
+      max-height: 600px;
+    }
+
+    .square {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.5rem, 4vw, 3rem);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      aspect-ratio: 1;
+    }
+
+    .square.white {
+      background-color: #f0d9b5;
+    }
+
+    .square.black {
+      background-color: #b58863;
+    }
+
+    .square:hover {
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+      transform: scale(0.95);
+    }
+
+    .square.selected {
+      background-color: #7fb069 !important;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+      transform: scale(0.9);
+    }
+
+    .square.valid-move {
+      background-color: #87ceeb !important;
+      box-shadow: inset 0 0 15px rgba(0,100,200,0.5);
+      position: relative;
+    }
+
+    .square.valid-move::after {
+      content: '';
+      position: absolute;
+      width: 20%;
+      height: 20%;
+      background-color: rgba(0,100,200,0.8);
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+
+    .square.valid-move:hover {
+      background-color: #4682b4 !important;
+      transform: scale(0.95);
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+
+    /* טאבלט */
+    @media (max-width: 768px) {
+      body {
+        padding: 5px;
+      }
+      
+      .board {
+        width: min(95vw, 95vh);
+        height: min(95vw, 95vh);
+        border-width: 2px;
+      }
+      
+      .square {
+        font-size: clamp(1.2rem, 5vw, 2.5rem);
+      }
+    }
+
+    /* מובייל */
+    @media (max-width: 480px) {
+      body {
+        padding: 2px;
+      }
+      
+      h2 {
+        margin-bottom: 10px;
+        font-size: clamp(1.2rem, 6vw, 2rem);
+      }
+      
+      .board {
+        width: min(98vw, 98vh);
+        height: min(98vw, 98vh);
+        border-width: 1px;
+        border-radius: 4px;
+      }
+      
+      .square {
+        font-size: clamp(1rem, 6vw, 2rem);
+      }
+      
+      .square:hover {
+        transform: none;
+      }
+      
+      .square.selected {
+        transform: none;
+      }
+      
+      .square.valid-move:hover {
+        transform: none;
+      }
+    }
+
+    /* מסכים קטנים מאוד */
+    @media (max-width: 320px) {
+      .square {
+        font-size: clamp(0.8rem, 7vw, 1.5rem);
+      }
+    }
+
+    /* מסכים רחבים */
+    @media (min-width: 1200px) {
+      .board {
+        max-width: 700px;
+        max-height: 700px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h2 id="turn">תור: לבן</h2>
+    <div class="board" id="board"></div>
+  </div>
+
+  <script>
+    // 📄 Piece symbols mapping
+    const pieces = {
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+      'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
+    };
+
+    // 📄 board.js – מבנה הלוח ההתחלתי
+    const startBoard = [
+      "rnbqkbnr",
+      "pppppppp", 
+      "        ",
+      "        ",
+      "        ",
+      "        ",
+      "PPPPPPPP",
+      "RNBQKBNR"
+    ];
+
+    function cloneBoard(board) {
+      return board.map(row => row.split(""));
+    }
+
+    function getPieceColor(piece) {
+      if (piece === " ") return null;
+      return piece === piece.toUpperCase() ? "white" : "black";
+    }
+
+    function inBounds(row, col) {
+      return row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
+
+    // 📄 pieces/pawn.js
+    function getPawnMoves(board, row, col, color) {
+      const moves = [];
+      const dir = color === "white" ? -1 : 1;
+      const startRow = color === "white" ? 6 : 1;
+
+      if (inBounds(row + dir, col) && board[row + dir][col] === " ") {
+        moves.push([row + dir, col]);
+      }
+
+      if (row === startRow && board[row + dir][col] === " " && board[row + 2 * dir][col] === " ") {
+        moves.push([row + 2 * dir, col]);
+      }
+
+      for (let dc of [-1, 1]) {
+        let r = row + dir, c = col + dc;
+        if (inBounds(r, c)) {
+          const target = board[r][c];
+          if (target !== " " && getPieceColor(target) !== color) {
+            moves.push([r, c]);
+          }
+        }
+      }
+      return moves;
+    }
+
+    // 📄 pieces/knight.js
+    function getKnightMoves(board, row, col, color) {
+      const moves = [];
+      const deltas = [
+        [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+        [1, -2], [1, 2], [2, -1], [2, 1]
+      ];
+      for (let [dr, dc] of deltas) {
+        const r = row + dr, c = col + dc;
+        if (inBounds(r, c)) {
+          const target = board[r][c];
+          if (target === " " || getPieceColor(target) !== color) {
+            moves.push([r, c]);
+          }
+        }
+      }
+      return moves;
+    }
+
+    // 📄 pieces/bishop.js
+    function getBishopMoves(board, row, col, color) {
+      const moves = [];
+      const directions = [[1,1],[1,-1],[-1,1],[-1,-1]];
+      for (let [dr, dc] of directions) {
+        let r = row + dr, c = col + dc;
+        while (inBounds(r, c)) {
+          const target = board[r][c];
+          if (target === " ") {
+            moves.push([r, c]);
+          } else {
+            if (getPieceColor(target) !== color) {
+              moves.push([r, c]);
+            }
+            break;
+          }
+          r += dr;
+          c += dc;
+        }
+      }
+      return moves;
+    }
+
+    // 📄 pieces/rook.js
+    function getRookMoves(board, row, col, color) {
+      const moves = [];
+      const directions = [[1,0],[0,1],[-1,0],[0,-1]];
+      for (let [dr, dc] of directions) {
+        let r = row + dr, c = col + dc;
+        while (inBounds(r, c)) {
+          const target = board[r][c];
+          if (target === " ") {
+            moves.push([r, c]);
+          } else {
+            if (getPieceColor(target) !== color) {
+              moves.push([r, c]);
+            }
+            break;
+          }
+          r += dr;
+          c += dc;
+        }
+      }
+      return moves;
+    }
+
+    // 📄 pieces/queen.js
+    function getQueenMoves(board, row, col, color) {
+      const diagonal = getBishopMoves(board, row, col, color);
+      const straight = getRookMoves(board, row, col, color);
+      return diagonal.concat(straight);
+    }
+
+    // 📄 pieces/king.js
+    function getKingMoves(board, row, col, color) {
+      const moves = [];
+      const deltas = [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],           [0, 1],
+        [1, -1],  [1, 0],  [1, 1]
+      ];
+      for (let [dr, dc] of deltas) {
+        const r = row + dr, c = col + dc;
+        if (inBounds(r, c)) {
+          const target = board[r][c];
+          if (target === " " || getPieceColor(target) !== color) {
+            moves.push([r, c]);
+          }
+        }
+      }
+      return moves;
+    }
+
+    // 📄 main.js – לוגיקה עיקרית של המשחק
+    const boardElement = document.getElementById("board");
+    const turnDisplay = document.getElementById("turn");
+
+    let board = cloneBoard(startBoard);
+    let selected = null;
+    let validMoves = [];
+    let turn = "white";
+
+    function renderBoard() {
+      boardElement.innerHTML = "";
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const square = document.createElement("div");
+          const piece = board[row][col];
+          square.className = "square " + ((row + col) % 2 === 0 ? "white" : "black");
+          square.dataset.row = row;
+          square.dataset.col = col;
+
+          if (selected && selected[0] == row && selected[1] == col) {
+            square.classList.add("selected");
+          }
+
+          if (validMoves.some(m => m[0] == row && m[1] == col)) {
+            square.classList.add("valid-move");
+          }
+
+          if (piece !== " ") {
+            square.textContent = pieces[piece];
+          }
+          boardElement.appendChild(square);
+        }
+      }
+    }
+
+    function getMoves(row, col) {
+      const piece = board[row][col];
+      const color = getPieceColor(piece);
+      const type = piece.toLowerCase();
+
+      if (type === "p") return getPawnMoves(board, row, col, color);
+      if (type === "n") return getKnightMoves(board, row, col, color);
+      if (type === "b") return getBishopMoves(board, row, col, color);
+      if (type === "r") return getRookMoves(board, row, col, color);
+      if (type === "q") return getQueenMoves(board, row, col, color);
+      if (type === "k") return getKingMoves(board, row, col, color);
+
+      return [];
+    }
+
+    boardElement.addEventListener("click", (e) => {
+      const square = e.target;
+      const row = parseInt(square.dataset.row);
+      const col = parseInt(square.dataset.col);
+      if (isNaN(row) || isNaN(col)) return;
+
+      const piece = board[row][col];
+      const color = getPieceColor(piece);
+
+      if (selected) {
+        const [selRow, selCol] = selected;
+        if (validMoves.some(m => m[0] == row && m[1] == col)) {
+          board[row][col] = board[selRow][selCol];
+          board[selRow][selCol] = " ";
+          turn = turn === "white" ? "black" : "white";
+          turnDisplay.textContent = "תור: " + (turn === "white" ? "לבן" : "שחור");
+        }
+        selected = null;
+        validMoves = [];
+      } else {
+        if (piece !== " " && color === turn) {
+          selected = [row, col];
+          validMoves = getMoves(row, col);
+        }
+      }
+      renderBoard();
+    });
+
+    renderBoard();
+  </script>
+</body>
+</html>
