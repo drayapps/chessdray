@@ -38,6 +38,96 @@
       padding: 0 10px;
     }
 
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .game-mode {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .mode-btn, .hint-btn, .reset-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .mode-btn {
+      background-color: #4a90e2;
+      color: white;
+    }
+
+    .mode-btn.active {
+      background-color: #2c5aa0;
+      transform: scale(1.05);
+    }
+
+    .mode-btn:hover {
+      background-color: #357abd;
+      transform: translateY(-2px);
+    }
+
+    .hint-btn {
+      background-color: #f39c12;
+      color: white;
+    }
+
+    .hint-btn:hover {
+      background-color: #e67e22;
+    }
+
+    .hint-btn:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+
+    .reset-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .reset-btn:hover {
+      background-color: #c0392b;
+    }
+
+    .difficulty {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .difficulty select {
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: none;
+      font-size: 14px;
+    }
+
+    .hint-display {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: rgba(255,255,255,0.9);
+      border-radius: 10px;
+      color: #333;
+      font-weight: bold;
+      max-width: 500px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
     .board {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
@@ -105,9 +195,30 @@
       transform: scale(0.95);
     }
 
+    .square.hint {
+      background-color: #f1c40f !important;
+      animation: glow 1s infinite alternate;
+    }
+
+    .square.computer-move {
+      background-color: #e74c3c !important;
+      animation: computerMove 2s ease-in-out;
+    }
+
     @keyframes pulse {
       0%, 100% { transform: scale(1); opacity: 0.7; }
       50% { transform: scale(1.2); opacity: 1; }
+    }
+
+    @keyframes glow {
+      from { box-shadow: 0 0 10px #f1c40f; }
+      to { box-shadow: 0 0 20px #f1c40f, inset 0 0 10px #f1c40f; }
+    }
+
+    @keyframes computerMove {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); background-color: #ff6b6b; }
+      100% { transform: scale(1); }
     }
 
     /* טאבלט */
@@ -131,6 +242,25 @@
     @media (max-width: 480px) {
       body {
         padding: 2px;
+      }
+
+      .controls {
+        gap: 10px;
+      }
+      
+      .mode-btn, .hint-btn, .reset-btn {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+      
+      .game-mode {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .difficulty {
+        flex-direction: column;
+        gap: 5px;
       }
       
       h2 {
@@ -160,6 +290,12 @@
       .square.valid-move:hover {
         transform: none;
       }
+
+      .hint-display {
+        margin-top: 15px;
+        padding: 10px;
+        font-size: 14px;
+      }
     }
 
     /* מסכים קטנים מאוד */
@@ -180,8 +316,25 @@
 </head>
 <body>
   <div class="game-container">
+    <div class="controls">
+      <div class="game-mode">
+        <button id="pvp-mode" class="mode-btn active">שחקן נגד שחקן</button>
+        <button id="pvc-mode" class="mode-btn">שחקן נגד מחשב</button>
+      </div>
+      <div class="difficulty" id="difficulty-controls" style="display: none;">
+        <label>רמת קושי:</label>
+        <select id="difficulty-select">
+          <option value="easy">קל</option>
+          <option value="medium" selected>בינוני</option>
+          <option value="hard">קשה</option>
+        </select>
+      </div>
+      <button id="hint-btn" class="hint-btn">💡 רמז</button>
+      <button id="reset-btn" class="reset-btn">🔄 משחק חדש</button>
+    </div>
     <h2 id="turn">תור: לבן</h2>
     <div class="board" id="board"></div>
+    <div id="hint-display" class="hint-display" style="display: none;"></div>
   </div>
 
   <script>
@@ -334,6 +487,157 @@
       return moves;
     }
 
+    // פונקציית getMoves מרכזית
+    function getMoves(row, col, boardToUse = board) {
+      const piece = boardToUse[row][col];
+      const color = getPieceColor(piece);
+      const type = piece.toLowerCase();
+
+      if (type === "p") return getPawnMoves(boardToUse, row, col, color);
+      if (type === "n") return getKnightMoves(boardToUse, row, col, color);
+      if (type === "b") return getBishopMoves(boardToUse, row, col, color);
+      if (type === "r") return getRookMoves(boardToUse, row, col, color);
+      if (type === "q") return getQueenMoves(boardToUse, row, col, color);
+      if (type === "k") return getKingMoves(boardToUse, row, col, color);
+
+      return [];
+    }
+
+    // פונקציות הערכת מצב
+    function evaluateBoard(board) {
+      let score = 0;
+      const pieceValues = {
+        'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9, 'k': -1000,
+        'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 1000
+      };
+      
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const piece = board[row][col];
+          if (piece !== " ") {
+            score += pieceValues[piece] || 0;
+            // בונוס למיקום במרכז
+            if (piece.toLowerCase() === 'p') {
+              score += piece === piece.toUpperCase() ? (3.5 - row) * 0.1 : (row - 3.5) * 0.1;
+            }
+          }
+        }
+      }
+      return score;
+    }
+
+    function getAllPossibleMoves(board, color) {
+      const moves = [];
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const piece = board[row][col];
+          if (piece !== " " && getPieceColor(piece) === color) {
+            const pieceMoves = getMoves(row, col, board);
+            for (const move of pieceMoves) {
+              moves.push({
+                from: [row, col],
+                to: move,
+                piece: piece
+              });
+            }
+          }
+        }
+      }
+      return moves;
+    }
+
+    function makeMove(board, from, to) {
+      const newBoard = board.map(row => [...row]);
+      newBoard[to[0]][to[1]] = newBoard[from[0]][from[1]];
+      newBoard[from[0]][from[1]] = " ";
+      return newBoard;
+    }
+
+    function minimax(board, depth, isMaximizing, alpha, beta) {
+      if (depth === 0) {
+        return evaluateBoard(board);
+      }
+
+      const moves = getAllPossibleMoves(board, isMaximizing ? "black" : "white");
+      
+      if (moves.length === 0) {
+        return isMaximizing ? -Infinity : Infinity;
+      }
+      
+      if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (const move of moves) {
+          const newBoard = makeMove(board, move.from, move.to);
+          const eval = minimax(newBoard, depth - 1, false, alpha, beta);
+          maxEval = Math.max(maxEval, eval);
+          alpha = Math.max(alpha, eval);
+          if (beta <= alpha) break;
+        }
+        return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (const move of moves) {
+          const newBoard = makeMove(board, move.from, move.to);
+          const eval = minimax(newBoard, depth - 1, true, alpha, beta);
+          minEval = Math.min(minEval, eval);
+          beta = Math.min(beta, eval);
+          if (beta <= alpha) break;
+        }
+        return minEval;
+      }
+    }
+
+    function getBestMove(board, difficulty) {
+      const moves = getAllPossibleMoves(board, "black");
+      if (moves.length === 0) return null;
+
+      let bestMove = moves[0];
+      let bestScore = -Infinity;
+      
+      const depths = { easy: 1, medium: 2, hard: 3 };
+      const searchDepth = depths[difficulty];
+
+      for (const move of moves) {
+        const newBoard = makeMove(board, move.from, move.to);
+        const score = minimax(newBoard, searchDepth, false, -Infinity, Infinity);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+      }
+
+      // הוספת אקראיות ברמה קלה
+      if (difficulty === "easy" && Math.random() < 0.3) {
+        return moves[Math.floor(Math.random() * moves.length)];
+      }
+
+      return bestMove;
+    }
+
+    function getHintMove(board, color) {
+      const moves = getAllPossibleMoves(board, color);
+      if (moves.length === 0) return null;
+
+      let bestMove = moves[0];
+      let bestScore = color === "white" ? -Infinity : Infinity;
+
+      for (const move of moves) {
+        const newBoard = makeMove(board, move.from, move.to);
+        const score = evaluateBoard(newBoard);
+        
+        if (color === "white" && score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        } else if (color === "black" && score < bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+      }
+
+      return bestMove;
+    }
+
     // 📄 main.js – לוגיקה עיקרית של המשחק
     const boardElement = document.getElementById("board");
     const turnDisplay = document.getElementById("turn");
@@ -342,6 +646,9 @@
     let selected = null;
     let validMoves = [];
     let turn = "white";
+    let gameMode = "pvp"; // pvp או pvc
+    let difficulty = "medium";
+    let hintMove = null;
 
     function renderBoard() {
       boardElement.innerHTML = "";
@@ -361,6 +668,12 @@
             square.classList.add("valid-move");
           }
 
+          if (hintMove && 
+              ((hintMove.from[0] == row && hintMove.from[1] == col) || 
+               (hintMove.to[0] == row && hintMove.to[1] == col))) {
+            square.classList.add("hint");
+          }
+
           if (piece !== " ") {
             square.textContent = pieces[piece];
           }
@@ -369,26 +682,57 @@
       }
     }
 
-    function getMoves(row, col) {
-      const piece = board[row][col];
-      const color = getPieceColor(piece);
-      const type = piece.toLowerCase();
-
-      if (type === "p") return getPawnMoves(board, row, col, color);
-      if (type === "n") return getKnightMoves(board, row, col, color);
-      if (type === "b") return getBishopMoves(board, row, col, color);
-      if (type === "r") return getRookMoves(board, row, col, color);
-      if (type === "q") return getQueenMoves(board, row, col, color);
-      if (type === "k") return getKingMoves(board, row, col, color);
-
-      return [];
+    function makePlayerMove(fromRow, fromCol, toRow, toCol) {
+      board[toRow][toCol] = board[fromRow][fromCol];
+      board[fromRow][fromCol] = " ";
+      turn = turn === "white" ? "black" : "white";
+      turnDisplay.textContent = "תור: " + (turn === "white" ? "לבן" : "שחור");
+      hintMove = null;
+      document.getElementById("hint-display").style.display = "none";
+      
+      // אם המחשב צריך לשחק
+      if (gameMode === "pvc" && turn === "black") {
+        setTimeout(() => {
+          const computerMove = getBestMove(board, difficulty);
+          if (computerMove) {
+            // סימון המהלך של המחשב
+            const fromSquare = document.querySelector(`[data-row="${computerMove.from[0]}"][data-col="${computerMove.from[1]}"]`);
+            const toSquare = document.querySelector(`[data-row="${computerMove.to[0]}"][data-col="${computerMove.to[1]}"]`);
+            
+            if (fromSquare) fromSquare.classList.add("computer-move");
+            if (toSquare) toSquare.classList.add("computer-move");
+            
+            board[computerMove.to[0]][computerMove.to[1]] = board[computerMove.from[0]][computerMove.from[1]];
+            board[computerMove.from[0]][computerMove.from[1]] = " ";
+            turn = "white";
+            turnDisplay.textContent = "תור: לבן";
+            
+            renderBoard();
+          }
+        }, 500);
+      }
     }
 
+    function resetGame() {
+      board = cloneBoard(startBoard);
+      selected = null;
+      validMoves = [];
+      turn = "white";
+      hintMove = null;
+      turnDisplay.textContent = "תור: לבן";
+      document.getElementById("hint-display").style.display = "none";
+      renderBoard();
+    }
+
+    // Event listeners
     boardElement.addEventListener("click", (e) => {
       const square = e.target;
       const row = parseInt(square.dataset.row);
       const col = parseInt(square.dataset.col);
       if (isNaN(row) || isNaN(col)) return;
+
+      // בודק אם זה תור המחשב
+      if (gameMode === "pvc" && turn === "black") return;
 
       const piece = board[row][col];
       const color = getPieceColor(piece);
@@ -396,10 +740,7 @@
       if (selected) {
         const [selRow, selCol] = selected;
         if (validMoves.some(m => m[0] == row && m[1] == col)) {
-          board[row][col] = board[selRow][selCol];
-          board[selRow][selCol] = " ";
-          turn = turn === "white" ? "black" : "white";
-          turnDisplay.textContent = "תור: " + (turn === "white" ? "לבן" : "שחור");
+          makePlayerMove(selRow, selCol, row, col);
         }
         selected = null;
         validMoves = [];
@@ -411,6 +752,43 @@
       }
       renderBoard();
     });
+
+    // כפתורי בקרה
+    document.getElementById("pvp-mode").addEventListener("click", () => {
+      gameMode = "pvp";
+      document.getElementById("pvp-mode").classList.add("active");
+      document.getElementById("pvc-mode").classList.remove("active");
+      document.getElementById("difficulty-controls").style.display = "none";
+      resetGame();
+    });
+
+    document.getElementById("pvc-mode").addEventListener("click", () => {
+      gameMode = "pvc";
+      document.getElementById("pvc-mode").classList.add("active");
+      document.getElementById("pvp-mode").classList.remove("active");
+      document.getElementById("difficulty-controls").style.display = "flex";
+      resetGame();
+    });
+
+    document.getElementById("difficulty-select").addEventListener("change", (e) => {
+      difficulty = e.target.value;
+    });
+
+    document.getElementById("hint-btn").addEventListener("click", () => {
+      if (gameMode === "pvc" && turn === "black") return;
+      
+      const hint = getHintMove(board, turn);
+      if (hint) {
+        hintMove = hint;
+        const hintDisplay = document.getElementById("hint-display");
+        const fromPiece = pieces[hint.piece];
+        hintDisplay.innerHTML = `💡 רמז: העבר את ${fromPiece} מ-${String.fromCharCode(97 + hint.from[1])}${8 - hint.from[0]} ל-${String.fromCharCode(97 + hint.to[1])}${8 - hint.to[0]}`;
+        hintDisplay.style.display = "block";
+        renderBoard();
+      }
+    });
+
+    document.getElementById("reset-btn").addEventListener("click", resetGame);
 
     renderBoard();
   </script>
